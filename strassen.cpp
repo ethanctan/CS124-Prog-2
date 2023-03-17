@@ -19,7 +19,6 @@ int NUM_THREADS = 8;
 
 // Define a struct for matrix with the dimension and matrix
 struct matrix {
-    int dim;
     vector<vector<int>> mat;
 };
 
@@ -88,7 +87,6 @@ int find_2k(int dimension) {
 
 // function to pad or unpad
 void pad_unpad(matrix* A, int new_dimension) {
-    A->dim = new_dimension;
     A->mat.resize(new_dimension);
     for (int i = 0; i < new_dimension; i++) {
         A->mat[i].resize(new_dimension);
@@ -151,10 +149,9 @@ void conventional_multithread(matrix* A, matrix* B, matrix* C, int A_row, int A_
 void strassen(matrix* A, matrix* B, matrix* C, int A_row, int A_col, int B_row, int B_col, int C_row, int C_col, int size) {
     // base case
     if (size == 1) {
-        C->mat[0][0] = A->mat[0][0] * B->mat[0][0];
+        C->mat[C_row][C_col] = A->mat[A_row][A_col] * B->mat[B_row][B_col]; 
         return;
     }
-
     // recursive strassen: C is output, A and B are inputs
     // create temp matrices T1 and T2
     int submatrixsize = size / 2;
@@ -247,7 +244,7 @@ void strassen(matrix* A, matrix* B, matrix* C, int A_row, int A_col, int B_row, 
 void strassen_multithread(matrix* A, matrix* B, matrix* C, int A_row, int A_col, int B_row, int B_col, int C_row, int C_col, int size) {
     // base case
     if (size == 1) {
-        C->mat[0][0] = A->mat[0][0] * B->mat[0][0];
+        C->mat[C_row][C_col] = A->mat[A_row][A_col] * B->mat[B_row][B_col]; 
         return;
     }
 
@@ -273,7 +270,7 @@ void strassen_multithread(matrix* A, matrix* B, matrix* C, int A_row, int A_col,
     // END THREADS
 
     // 3. C22 = C12 x C21 [recursive]
-    strassen(C, C, C, C_row, C_col + submatrixsize, C_row + submatrixsize, C_col, C_row + submatrixsize, C_col + submatrixsize, submatrixsize);
+    strassen_multithread(C, C, C, C_row, C_col + submatrixsize, C_row + submatrixsize, C_col, C_row + submatrixsize, C_col + submatrixsize, submatrixsize);
 
     // THREAD BLOCK 2
 
@@ -289,7 +286,7 @@ void strassen_multithread(matrix* A, matrix* B, matrix* C, int A_row, int A_col,
     // END THREADS
 
     // 6. C11 = C12 x C21 [recursive]
-    strassen(C, C, C, C_row, C_col + submatrixsize, C_row + submatrixsize, C_col, C_row, C_col, submatrixsize);
+    strassen_multithread(C, C, C, C_row, C_col + submatrixsize, C_row + submatrixsize, C_col, C_row, C_col, submatrixsize);
 
     // THREAD BLOCK 3
 
@@ -305,7 +302,7 @@ void strassen_multithread(matrix* A, matrix* B, matrix* C, int A_row, int A_col,
     // END THREADS
 
     // 9. T1 = C12 x C21 [recursive]
-    strassen(C, C, T1, C_row, C_col + submatrixsize, C_row + submatrixsize, C_col, 0, 0, submatrixsize);
+    strassen_multithread(C, C, T1, C_row, C_col + submatrixsize, C_row + submatrixsize, C_col, 0, 0, submatrixsize);
 
     // THREAD BLOCK 4
 
@@ -325,7 +322,7 @@ void strassen_multithread(matrix* A, matrix* B, matrix* C, int A_row, int A_col,
     // END THREADS
 
     // 13. C21 = T2 x B11 [recursive]
-    strassen(T2, B, C, 0, 0, B_row, B_col, C_row + submatrixsize, C_col, submatrixsize);
+    strassen_multithread(T2, B, C, 0, 0, B_row, B_col, C_row + submatrixsize, C_col, submatrixsize);
 
     // THREAD BLOCK 5
 
@@ -341,7 +338,7 @@ void strassen_multithread(matrix* A, matrix* B, matrix* C, int A_row, int A_col,
     // END THREADS
 
     // 16. T2 = A22 x T1 [recursive]
-    strassen(A, T1, T2, A_row + submatrixsize, A_col + submatrixsize, 0, 0, 0, 0, submatrixsize);
+    strassen_multithread(A, T1, T2, A_row + submatrixsize, A_col + submatrixsize, 0, 0, 0, 0, submatrixsize);
 
     // THREAD BLOCK 6
 
@@ -361,7 +358,7 @@ void strassen_multithread(matrix* A, matrix* B, matrix* C, int A_row, int A_col,
     // END THREADS
 
     // 20. C12 = A11 x T1 [recursive]
-    strassen(A, T1, C, A_row, A_col, 0, 0, C_row, C_col + submatrixsize, submatrixsize);
+    strassen_multithread(A, T1, C, A_row, A_col, 0, 0, C_row, C_col + submatrixsize, submatrixsize);
 
     // THREAD BLOCK 7
 
@@ -377,7 +374,7 @@ void strassen_multithread(matrix* A, matrix* B, matrix* C, int A_row, int A_col,
     // END THREADS
 
     // 23. T1 = T2 x B22 [recursive]
-    strassen(T2, B, T1, 0, 0, B_row + submatrixsize, B_col + submatrixsize, 0, 0, submatrixsize);
+    strassen_multithread(T2, B, T1, 0, 0, B_row + submatrixsize, B_col + submatrixsize, 0, 0, submatrixsize);
 
     // THREAD BLOCK 8
 
@@ -401,19 +398,17 @@ void strassen_multithread(matrix* A, matrix* B, matrix* C, int A_row, int A_col,
 void generate_matrix(int type, int dimension, matrix* A) {
     // seed RNG with time
     srand((unsigned) time(NULL));
-    int random = rand();
-
-    // resize A to required dimension
-    pad_unpad(A, dimension);
 
     for (int i = 0; i < dimension; i++) {
+        A->mat.push_back(vector<int>());
         for (int j = 0; j < dimension; j++) {
+            int random = rand();
             if (type == 0)
-                A->mat[i][j] = random % 2;
+                A->mat[i].push_back(random % 2);
             else if (type == 1)
-                A->mat[i][j] = random % 3;
+                A->mat[i].push_back(random % 3);
             else
-                A->mat[i][j] = (random % 3) - 1;
+                A->mat[i].push_back((random % 3) - 1);
         }
     }
 }
@@ -422,18 +417,19 @@ int main(int argc, char** argv) {
     // ./strassen 0 dimension inputfile
     // If first argument is 0, A and B are taken from inputfile
     // If first argument is 1, A and B are randomly generated
+    // If first argument is 2, A and B are written as a single string of single-digit integers
 
-    // Interpret inputfile
+    // Start timer
+    clock_t start, stop;
+    start = clock();
+
     int matrixdimension = atoi(argv[2]);
     int totaldimension = matrixdimension * matrixdimension;
+    int pad_limit = find_2k(matrixdimension);
+    matrix A, B, C;
 
-    if (atoi(argv[1]) == 0) {
+    if (atoi(argv[1]) == 2) { // Matrix input as string
         string matrices = argv[3];
-
-        // Populate A and B
-        matrix A, B;
-        A.dim = matrixdimension;
-        B.dim = matrixdimension;
         for (int i = 0; i < matrixdimension; i++) {
             A.mat.push_back(vector<int>());
             B.mat.push_back(vector<int>());
@@ -442,68 +438,80 @@ int main(int argc, char** argv) {
                 B.mat[i].push_back( (int)matrices[i * matrixdimension + j + totaldimension] - '0');
             }
         }
-        
-        // Pad A and B to next power of 2
-        int pad_limit = find_2k(matrixdimension);
-        pad_unpad(&A, pad_limit);
-        pad_unpad(&B, pad_limit);
 
-        // Print A and B
-        for (int i = 0; i < pad_limit; i++) {
-            for (int j = 0; j < pad_limit; j++) {
-                cout << A.mat[i][j] << " ";
+    } else if (atoi(argv[1]) == 1) { // Generate random matrices
+
+        int matrixtype = atoi(argv[3]);
+        generate_matrix(matrixtype, matrixdimension, &A);
+        generate_matrix(matrixtype, matrixdimension, &B);
+
+    } else if (atoi(argv[1]) == 0) { // Interpret input file
+
+        // "The inputfile is an ASCII file with 2d^2 integer numbers, one per line"
+        ifstream inputfile(argv[3]);
+        string line;
+
+        int i = 0, j = 0;
+        while (getline(inputfile, line)) {
+            if (i < matrixdimension) {
+                A.mat.push_back(vector<int>());
+                B.mat.push_back(vector<int>());
             }
-            cout << endl;
-        }
-        cout << endl;
-        for (int i = 0; i < pad_limit; i++) {
-            for (int j = 0; j < pad_limit; j++) {
-                cout << B.mat[i][j] << " ";
+
+            if (i < totaldimension) {
+                A.mat[j].push_back(stoi(line));
+            } else {
+                B.mat[j - matrixdimension].push_back(stoi(line));
             }
-            cout << endl;
+            i++;
+            if (i != 0 && i % matrixdimension == 0)
+                j++;
         }
-        cout << endl;
+        inputfile.close();
+    }
 
+    // Pad matrices to next power of 2
+    pad_unpad(&A, pad_limit);
+    pad_unpad(&B, pad_limit);
+    pad_unpad(&C, pad_limit);
 
-        // Perform Strassen's algorithm
-        matrix C;
-        pad_unpad(&C, pad_limit);
-        // print c
-        for (int i = 0; i < pad_limit; i++) {
-            for (int j = 0; j < pad_limit; j++) {
-                cout << C.mat[i][j] << " ";
-            }
-            cout << endl;
+    // Matrix multiply using chosen method; blank = strassen normal, 1 = strassen multithread, 2 = conventional, 3 = conventional multithread, 4 = nothing (for tests)
+    if (argv[4]) {
+        int method = atoi(argv[4]);
+        if (method == 1) {
+            cout << "Strassen Multithread" << endl;
+            strassen_multithread(&A, &B, &C, 0, 0, 0, 0, 0, 0, pad_limit);
         }
-
-        conventional(&A, &B, &C, 0, 0, 0, 0, 0, 0, pad_limit);
-
-        // Print C diagonals
-        print_diagonal(&C, matrixdimension);
-
-        // Print C
-        for (int i = 0; i < pad_limit; i++) {
-            for (int j = 0; j < pad_limit; j++) {
-                cout << C.mat[i][j] << " ";
-            }
-            cout << endl;
+        else if (method == 2) {
+            cout << "Conventional" << endl;
+            conventional(&A, &B, &C, 0, 0, 0, 0, 0, 0, pad_limit);
         }
-        
-
-    } else {
-        // Generate random matrices
-        matrix A, B, C;
-        generate_matrix(0, totaldimension, &A);
-        generate_matrix(0, totaldimension, &B);
-
-
-        // Print C
-        for (int i = 0; i < matrixdimension; i++) {
-            for (int j = 0; j < matrixdimension; j++) {
-                cout << C.mat[i][j] << " ";
-            }
-            cout << endl;
+        else if (method == 3) {
+            cout << "Conventional Multithread" << endl;
+            conventional_multithread(&A, &B, &C, 0, 0, 0, 0, 0, 0, pad_limit);
         }
+        else if (method == 4)
+            return 0;
+    }
+    else
+        strassen(&A, &B, &C, 0, 0, 0, 0, 0, 0, pad_limit);
+
+    // Print C diagonals
+    if (atoi(argv[1]) != 1)
+        print_diagonal(&C, matrixdimension);        
+
+    // free memory
+    A.mat.clear();
+    B.mat.clear();
+    C.mat.clear();
+
+    // stop timer
+    stop = clock();
+  
+    // calculate time taken if random matrices used
+    if (atoi(argv[1]) == 1) {
+        double totaltime = double(stop - start) / double(CLOCKS_PER_SEC);
+        cout << "Time taken (seconds): " << fixed << totaltime << setprecision(10) << endl;
     }
 
     return 0;
