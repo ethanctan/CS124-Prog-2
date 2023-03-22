@@ -12,6 +12,11 @@
 
 using namespace std;
 int NUM_THREADS = 8;
+int matrixdimension;
+int threshold;
+int str_conv_threshold = 64;
+
+// For each size of matrix, we test crosspoint at n smaller than dimension, then select the one gives smallest running time
 
 // ./strassen 0 dimension inputfile
 // Dimension = dimension of matrix
@@ -21,6 +26,9 @@ int NUM_THREADS = 8;
 struct matrix {
     vector<vector<int>> mat;
 };
+
+// Prototype for recursive multiplication function
+void multiply_recursive(matrix*, matrix*, matrix*, int, int, int, int, int, int, int);
 
 // Matrix is [i][j] where i is row and j is column, starting at 0
 
@@ -167,7 +175,7 @@ void strassen(matrix* A, matrix* B, matrix* C, int A_row, int A_col, int B_row, 
     add_efficient(B, B, C, B_row, B_col, B_row, B_col + submatrixsize, C_row + submatrixsize, C_col, submatrixsize);
 
     // 3. C22 = C12 x C21 [recursive]
-    strassen(C, C, C, C_row, C_col + submatrixsize, C_row + submatrixsize, C_col, C_row + submatrixsize, C_col + submatrixsize, submatrixsize);
+    multiply_recursive(C, C, C, C_row, C_col + submatrixsize, C_row + submatrixsize, C_col, C_row + submatrixsize, C_col + submatrixsize, submatrixsize);
 
     // 4. C12 = A12 - A22
     sub_efficient(A, A, C, A_row, A_col + submatrixsize, A_row + submatrixsize, A_col + submatrixsize, C_row, C_col + submatrixsize, submatrixsize);
@@ -176,7 +184,7 @@ void strassen(matrix* A, matrix* B, matrix* C, int A_row, int A_col, int B_row, 
     add_efficient(B, B, C, B_row + submatrixsize, B_col, B_row + submatrixsize, B_col + submatrixsize, C_row + submatrixsize, C_col, submatrixsize);
 
     // 6. C11 = C12 x C21 [recursive]
-    strassen(C, C, C, C_row, C_col + submatrixsize, C_row + submatrixsize, C_col, C_row, C_col, submatrixsize);
+    multiply_recursive(C, C, C, C_row, C_col + submatrixsize, C_row + submatrixsize, C_col, C_row, C_col, submatrixsize);
 
     // 7. C12 = A11 + A22
     add_efficient(A, A, C, A_row, A_col, A_row + submatrixsize, A_col + submatrixsize, C_row, C_col + submatrixsize, submatrixsize);
@@ -185,7 +193,7 @@ void strassen(matrix* A, matrix* B, matrix* C, int A_row, int A_col, int B_row, 
     add_efficient(B, B, C, B_row, B_col, B_row + submatrixsize, B_col + submatrixsize, C_row + submatrixsize, C_col, submatrixsize);
 
     // 9. T1 = C12 x C21 [recursive]
-    strassen(C, C, T1, C_row, C_col + submatrixsize, C_row + submatrixsize, C_col, 0, 0, submatrixsize);
+    multiply_recursive(C, C, T1, C_row, C_col + submatrixsize, C_row + submatrixsize, C_col, 0, 0, submatrixsize);
 
     // 10. C11 = C11 + T1
     add_efficient(C, T1, C, C_row, C_col, 0, 0, C_row, C_col, submatrixsize);
@@ -197,7 +205,7 @@ void strassen(matrix* A, matrix* B, matrix* C, int A_row, int A_col, int B_row, 
     add_efficient(A, A, T2, A_row + submatrixsize, A_col, A_row + submatrixsize, A_col + submatrixsize, 0, 0, submatrixsize);
 
     // 13. C21 = T2 x B11 [recursive]
-    strassen(T2, B, C, 0, 0, B_row, B_col, C_row + submatrixsize, C_col, submatrixsize);
+    multiply_recursive(T2, B, C, 0, 0, B_row, B_col, C_row + submatrixsize, C_col, submatrixsize);
 
     // 14. C22 = C22 - C21
     sub_efficient(C, C, C, C_row + submatrixsize, C_col + submatrixsize, C_row + submatrixsize, C_col, C_row + submatrixsize, C_col + submatrixsize, submatrixsize);
@@ -206,7 +214,7 @@ void strassen(matrix* A, matrix* B, matrix* C, int A_row, int A_col, int B_row, 
     sub_efficient(B, B, T1, B_row + submatrixsize, B_col, B_row, B_col, 0, 0, submatrixsize);
 
     // 16. T2 = A22 x T1 [recursive]
-    strassen(A, T1, T2, A_row + submatrixsize, A_col + submatrixsize, 0, 0, 0, 0, submatrixsize);
+    multiply_recursive(A, T1, T2, A_row + submatrixsize, A_col + submatrixsize, 0, 0, 0, 0, submatrixsize);
 
     // 17. C21 = C21 + T2
     add_efficient(C, T2, C, C_row + submatrixsize, C_col, 0, 0, C_row + submatrixsize, C_col, submatrixsize);
@@ -218,7 +226,7 @@ void strassen(matrix* A, matrix* B, matrix* C, int A_row, int A_col, int B_row, 
     sub_efficient(B, B, T1, B_row, B_col + submatrixsize, B_row + submatrixsize, B_col + submatrixsize, 0, 0, submatrixsize);
 
     // 20. C12 = A11 x T1 [recursive]
-    strassen(A, T1, C, A_row, A_col, 0, 0, C_row, C_col + submatrixsize, submatrixsize);
+    multiply_recursive(A, T1, C, A_row, A_col, 0, 0, C_row, C_col + submatrixsize, submatrixsize);
 
     // 21. C22 = C22 + C12
     add_efficient(C, C, C, C_row + submatrixsize, C_col + submatrixsize, C_row, C_col + submatrixsize, C_row + submatrixsize, C_col + submatrixsize, submatrixsize);
@@ -227,7 +235,7 @@ void strassen(matrix* A, matrix* B, matrix* C, int A_row, int A_col, int B_row, 
     add_efficient(A, A, T2, A_row, A_col, A_row, A_col + submatrixsize, 0, 0, submatrixsize);
 
     // 23. T1 = T2 x B22 [recursive]
-    strassen(T2, B, T1, 0, 0, B_row + submatrixsize, B_col + submatrixsize, 0, 0, submatrixsize);
+    multiply_recursive(T2, B, T1, 0, 0, B_row + submatrixsize, B_col + submatrixsize, 0, 0, submatrixsize);
 
     // 24. C12 = C12 + T1
     add_efficient(C, T1, C, C_row, C_col + submatrixsize, 0, 0, C_row, C_col + submatrixsize, submatrixsize);
@@ -259,55 +267,55 @@ void strassen_multithread(matrix* A, matrix* B, matrix* C, int A_row, int A_col,
     // THREAD BLOCK 1
 
     // 1. C12 = A21 - A11
-    {thread thread1(sub_efficient, A, A, C, A_row + submatrixsize, A_col, A_row, A_col, C_row, C_col + submatrixsize, submatrixsize);
+    thread thread1(sub_efficient, A, A, C, A_row + submatrixsize, A_col, A_row, A_col, C_row, C_col + submatrixsize, submatrixsize);
 
     // 2. C21 = B11 + B12
     thread thread2(add_efficient, B, B, C, B_row, B_col, B_row, B_col + submatrixsize, C_row + submatrixsize, C_col, submatrixsize);
 
     thread1.join();
-    thread2.join();}
+    thread2.join();
 
     // END THREADS
 
     // 3. C22 = C12 x C21 [recursive]
-    strassen_multithread(C, C, C, C_row, C_col + submatrixsize, C_row + submatrixsize, C_col, C_row + submatrixsize, C_col + submatrixsize, submatrixsize);
+    multiply_recursive(C, C, C, C_row, C_col + submatrixsize, C_row + submatrixsize, C_col, C_row + submatrixsize, C_col + submatrixsize, submatrixsize);
 
     // THREAD BLOCK 2
 
     // 4. C12 = A12 - A22
-    {thread thread3(sub_efficient, A, A, C, A_row, A_col + submatrixsize, A_row + submatrixsize, A_col + submatrixsize, C_row, C_col + submatrixsize, submatrixsize);
+    thread thread3(sub_efficient, A, A, C, A_row, A_col + submatrixsize, A_row + submatrixsize, A_col + submatrixsize, C_row, C_col + submatrixsize, submatrixsize);
 
     // 5. C21 = B21 + B22
     thread thread4(add_efficient, B, B, C, B_row + submatrixsize, B_col, B_row + submatrixsize, B_col + submatrixsize, C_row + submatrixsize, C_col, submatrixsize);
 
     thread3.join();
-    thread4.join();}
+    thread4.join();
 
     // END THREADS
 
     // 6. C11 = C12 x C21 [recursive]
-    strassen_multithread(C, C, C, C_row, C_col + submatrixsize, C_row + submatrixsize, C_col, C_row, C_col, submatrixsize);
+    multiply_recursive(C, C, C, C_row, C_col + submatrixsize, C_row + submatrixsize, C_col, C_row, C_col, submatrixsize);
 
     // THREAD BLOCK 3
 
     // 7. C12 = A11 + A22
-    {thread thread5(add_efficient, A, A, C, A_row, A_col, A_row + submatrixsize, A_col + submatrixsize, C_row, C_col + submatrixsize, submatrixsize);
+    thread thread5(add_efficient, A, A, C, A_row, A_col, A_row + submatrixsize, A_col + submatrixsize, C_row, C_col + submatrixsize, submatrixsize);
 
     // 8. C21 = B11 + B22
     thread thread6(add_efficient, B, B, C, B_row, B_col, B_row + submatrixsize, B_col + submatrixsize, C_row + submatrixsize, C_col, submatrixsize);
 
     thread5.join();
-    thread6.join();}
+    thread6.join();
 
     // END THREADS
 
     // 9. T1 = C12 x C21 [recursive]
-    strassen_multithread(C, C, T1, C_row, C_col + submatrixsize, C_row + submatrixsize, C_col, 0, 0, submatrixsize);
+    multiply_recursive(C, C, T1, C_row, C_col + submatrixsize, C_row + submatrixsize, C_col, 0, 0, submatrixsize);
 
     // THREAD BLOCK 4
 
     // 10. C11 = C11 + T1
-    {thread thread7(add_efficient, C, T1, C, C_row, C_col, 0, 0, C_row, C_col, submatrixsize);
+    thread thread7(add_efficient, C, T1, C, C_row, C_col, 0, 0, C_row, C_col, submatrixsize);
 
     // 11. C22 = C22 + T1
     thread thread8(add_efficient, C, T1, C, C_row + submatrixsize, C_col + submatrixsize, 0, 0, C_row + submatrixsize, C_col + submatrixsize, submatrixsize);
@@ -317,33 +325,33 @@ void strassen_multithread(matrix* A, matrix* B, matrix* C, int A_row, int A_col,
 
     thread7.join();
     thread8.join();
-    thread9.join();}
+    thread9.join();
 
     // END THREADS
 
     // 13. C21 = T2 x B11 [recursive]
-    strassen_multithread(T2, B, C, 0, 0, B_row, B_col, C_row + submatrixsize, C_col, submatrixsize);
+    multiply_recursive(T2, B, C, 0, 0, B_row, B_col, C_row + submatrixsize, C_col, submatrixsize);
 
     // THREAD BLOCK 5
 
     // 14. C22 = C22 - C21
-    {thread thread10(sub_efficient, C, C, C, C_row + submatrixsize, C_col + submatrixsize, C_row + submatrixsize, C_col, C_row + submatrixsize, C_col + submatrixsize, submatrixsize);
+    thread thread10(sub_efficient, C, C, C, C_row + submatrixsize, C_col + submatrixsize, C_row + submatrixsize, C_col, C_row + submatrixsize, C_col + submatrixsize, submatrixsize);
 
     // 15. T1 = B21 - B11
     thread thread11(sub_efficient, B, B, T1, B_row + submatrixsize, B_col, B_row, B_col, 0, 0, submatrixsize);
 
     thread10.join();
-    thread11.join();}
+    thread11.join();
     
     // END THREADS
 
     // 16. T2 = A22 x T1 [recursive]
-    strassen_multithread(A, T1, T2, A_row + submatrixsize, A_col + submatrixsize, 0, 0, 0, 0, submatrixsize);
+    multiply_recursive(A, T1, T2, A_row + submatrixsize, A_col + submatrixsize, 0, 0, 0, 0, submatrixsize);
 
     // THREAD BLOCK 6
 
     // 17. C21 = C21 + T2
-    {thread thread12(add_efficient, C, T2, C, C_row + submatrixsize, C_col, 0, 0, C_row + submatrixsize, C_col, submatrixsize);
+    thread thread12(add_efficient, C, T2, C, C_row + submatrixsize, C_col, 0, 0, C_row + submatrixsize, C_col, submatrixsize);
 
     // 18. C11 = C11 + T2
     thread thread13(add_efficient, C, T2, C, C_row, C_col, 0, 0, C_row, C_col, submatrixsize);
@@ -353,38 +361,38 @@ void strassen_multithread(matrix* A, matrix* B, matrix* C, int A_row, int A_col,
 
     thread12.join();
     thread13.join();
-    thread14.join();}
+    thread14.join();
 
     // END THREADS
 
     // 20. C12 = A11 x T1 [recursive]
-    strassen_multithread(A, T1, C, A_row, A_col, 0, 0, C_row, C_col + submatrixsize, submatrixsize);
+    multiply_recursive(A, T1, C, A_row, A_col, 0, 0, C_row, C_col + submatrixsize, submatrixsize);
 
     // THREAD BLOCK 7
 
     // 21. C22 = C22 + C12
-    {thread thread15(add_efficient, C, C, C, C_row + submatrixsize, C_col + submatrixsize, C_row, C_col + submatrixsize, C_row + submatrixsize, C_col + submatrixsize, submatrixsize);
+    thread thread15(add_efficient, C, C, C, C_row + submatrixsize, C_col + submatrixsize, C_row, C_col + submatrixsize, C_row + submatrixsize, C_col + submatrixsize, submatrixsize);
 
     // 22. T2 = A11 + A12
     thread thread16(add_efficient, A, A, T2, A_row, A_col, A_row, A_col + submatrixsize, 0, 0, submatrixsize);
 
     thread15.join();
-    thread16.join();}
+    thread16.join();
 
     // END THREADS
 
     // 23. T1 = T2 x B22 [recursive]
-    strassen_multithread(T2, B, T1, 0, 0, B_row + submatrixsize, B_col + submatrixsize, 0, 0, submatrixsize);
+    multiply_recursive(T2, B, T1, 0, 0, B_row + submatrixsize, B_col + submatrixsize, 0, 0, submatrixsize);
 
     // THREAD BLOCK 8
 
     // 24. C12 = C12 + T1
-    {thread thread17(add_efficient, C, T1, C, C_row, C_col + submatrixsize, 0, 0, C_row, C_col + submatrixsize, submatrixsize);
+    thread thread17(add_efficient, C, T1, C, C_row, C_col + submatrixsize, 0, 0, C_row, C_col + submatrixsize, submatrixsize);
 
     // 25. C11 = C11 - T1
     thread thread18(sub_efficient, C, T1, C, C_row, C_col, 0, 0, C_row, C_col, submatrixsize);
     thread17.join();
-    thread18.join();}
+    thread18.join();
 
     // END THREADS
 
@@ -413,17 +421,65 @@ void generate_matrix(int type, int dimension, matrix* A) {
     }
 }
 
+void multiply_recursive(matrix* A, matrix* B, matrix* C, int A_row, int A_col, int B_row, int B_col, int C_row, int C_col, int size) {
+    if (size > threshold) {
+        strassen_multithread(A, B, C, A_row, A_col, B_row, B_col, C_row, C_col, size);
+    }
+    else if (size > str_conv_threshold) {
+        strassen(A, B, C, A_row, A_col, B_row, B_col, C_row, C_col, size);
+    } else {
+        conventional(A, B, C, A_row, A_col, B_row, B_col, C_row, C_col, size);
+    }
+    // replace with desired functions if you want to test multithread
+}
+ 
 int main(int argc, char** argv) {
     // ./strassen 0 dimension inputfile
     // If first argument is 0, A and B are taken from inputfile
-    // If first argument is 1, A and B are randomly generated
+    // If first argument is 1, A and B are randomly generated and we test for the limit
     // If first argument is 2, A and B are written as a single string of single-digit integers
 
-    // Start timer
-    clock_t start, stop;
-    start = clock();
+    // New code for running the experiment. Sorry it's scuffed
+    if (atoi(argv[1]) == 1) {
+        matrixdimension = atoi(argv[2]);
+        int pad_limit = find_2k(matrixdimension);
 
-    int matrixdimension = atoi(argv[2]);
+        for (int j = matrixdimension; j > 0; j /= 2) {
+            for (int matrixtype = -1; matrixtype < 2; matrixtype++){
+                if (matrixtype == 0)
+                    cout << "N = " << j << ", Entries = {0, 1}" << endl << endl;
+                else if (matrixtype == 1)
+                    cout << "N = " << j << ", Entries = {0, 1, 2}" << endl << endl;
+                else
+                    cout << "N = " << j << ", Entries = {-1, 0, 1}" << endl << endl;
+
+                    for (int i = pad_limit; i >= str_conv_threshold; i /= 2) {
+                        matrix A, B, C;
+                        generate_matrix(matrixtype, matrixdimension, &A);
+                        generate_matrix(matrixtype, matrixdimension, &B);
+
+                        pad_unpad(&A, pad_limit);
+                        pad_unpad(&B, pad_limit);
+                        pad_unpad(&C, pad_limit);
+
+                        clock_t start, stop;
+                        start = clock();
+
+                        threshold = i;
+                        strassen_multithread(&A, &B, &C, 0, 0, 0, 0, 0, 0, pad_limit);
+
+                        stop = clock();
+                        double totaltime = double(stop - start) / double(CLOCKS_PER_SEC);
+                        cout << "Time taken (seconds): " << fixed << totaltime << setprecision(10) << endl;
+                        cout << "For Threshold: " << threshold << endl << endl; 
+                    }
+            }
+        }
+    } 
+    
+    else { // Original code for testing correctness on gradescope
+
+    matrixdimension = atoi(argv[2]);
     int totaldimension = matrixdimension * matrixdimension;
     int pad_limit = find_2k(matrixdimension);
     matrix A, B, C;
@@ -505,14 +561,6 @@ int main(int argc, char** argv) {
     B.mat.clear();
     C.mat.clear();
 
-    // stop timer
-    stop = clock();
-  
-    // calculate time taken if random matrices used
-    if (atoi(argv[1]) == 1) {
-        double totaltime = double(stop - start) / double(CLOCKS_PER_SEC);
-        cout << "Time taken (seconds): " << fixed << totaltime << setprecision(10) << endl;
-    }
-
     return 0;
+    }
 }
